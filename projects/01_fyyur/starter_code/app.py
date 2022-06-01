@@ -33,7 +33,6 @@ migrate = Migrate(app, db)
 shows = db.Table('shows',
   db.Column('artist_id', db.Integer, db.ForeignKey('artist.id'), primary_key = True),
   db.Column('venue_id',db.Integer, db.ForeignKey('venue.id'), primary_key = True),
-  db.Column('start_time', db.DateTime, nullable = True)
 )
   
 class Todos(db.Model):
@@ -245,10 +244,7 @@ def create_venue_submission():
   db.session.close()
 
   # TODO: insert form data as a new Venue record in the db, instead
-  print('about to add new venue')
   try:
-    print('in the try block')
-    print('from form: ' + form.image_link.data)
     venue = Venue(
       name=form.name.data+' here',
       city = form.city.data,
@@ -270,7 +266,6 @@ def create_venue_submission():
     # TODO: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
   except:
-    print('exception part is running')
     db.session.rollback()
     # flash('An error occurred. Venue ' + venue.name + ' could not be listed.')
     flash('An error occurred. Venue ' + request.form['name'] + ' could not be listed.')
@@ -554,13 +549,11 @@ def create_show_submission():
   # TODO: insert form data as a new Show record in the db, instead
   try:
     form = ShowForm()
-    artist = Artist.query.get(form.artist_id.data)
-    show = shows(
-      venue_id = form.venue_id.data,
-      artist_id = form.artist_id.data,
-      # start_time = form.start_time.data
-    )
-    db.session.add(show)
+    artist = Artist.query.filter_by(id = form.artist_id.data).first()
+    venue = Venue.query.filter_by(id = form.venue_id.data).first()
+    print(venue)
+    venue.artists.append(artist)
+    db.session.add(venue)
     db.session.commit()
     # on successful db insert, flash success
     flash('Show was successfully listed!')
