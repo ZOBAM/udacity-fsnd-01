@@ -93,7 +93,6 @@ app.jinja_env.filters['datetime'] = format_datetime
 
 @app.route('/')
 def index():
-  print('visiting home route')
   return render_template('pages/home.html')
 
 
@@ -253,7 +252,7 @@ def show_venue(venue_id):
     "past_shows_count": 1,
     "upcoming_shows_count": 1,
   }
-  data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
+  #data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
   
   venue = Venue.query.filter_by(id=venue_id).first()
 
@@ -314,7 +313,7 @@ def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   try:
     venue = Venue(
-      name=form.name.data+' here',
+      name=form.name.data,
       city = form.city.data,
       state = form.state.data,
       address = form.address.data,
@@ -344,12 +343,23 @@ def create_venue_submission():
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
+  print('about to delete venue')
   # TODO: Complete this endpoint for taking a venue_id, and using
   # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-
+  try:
+    shows = Show.query.filter_by(venue_id = venue_id).all()
+    for show in shows:
+      db.session.delete(show)
+    venue = Venue.query.filter_by(id = venue_id).first()
+    db.session.delete(venue)
+    db.session.commit()
+  except:
+    db.session.rollback()
+  finally:
+    db.session.close()
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+  return json.dumps({'success': True})
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -470,7 +480,6 @@ def show_artist(artist_id):
   past_shows_data = []
 
   for show in past_shows:
-    print('this is venue image: '+show.venues.image_link)
     past_shows_data.append({
       "venue_id": show.venue_id,
       "venue_name": Venue.query.filter_by(id=show.venue_id).first().name,
@@ -479,7 +488,6 @@ def show_artist(artist_id):
     })
 
   for show in upcoming_shows:
-    print('this is venue image: ')
     upcoming_shows_data.append({
       "venue_id": show.venue_id,
       "venue_name": Venue.query.filter_by(id=show.venue_id).first().name,
@@ -525,13 +533,32 @@ def edit_artist(artist_id):
     "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
   }
   # TODO: populate form with fields from artist with ID <artist_id>
+  artist = Artist.query.filter_by(id = artist_id).first()
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
   # TODO: take values from the form submitted, and update existing
   # artist record with ID <artist_id> using the new attributes
-
+  try:
+    form = ArtistForm()
+    Artist.query.filter_by(id = artist_id).update(dict(
+      name = form.name.data,
+      city = form.city.data,
+      state = form.state.data,
+      phone = form.phone.data,
+      genres = form.genres.data,
+      facebook_link = form.facebook_link.data,
+      image_link = form.image_link.data,
+      website_link = form.website_link.data,
+      seeking_venue = form.seeking_venue.data,
+      seeking_description = form.seeking_description.data
+    ))
+    db.session.commit()
+  except:
+    db.session.rollback()
+  finally:
+    db.session.close()
   return redirect(url_for('show_artist', artist_id=artist_id))
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
@@ -552,12 +579,34 @@ def edit_venue(venue_id):
     "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60"
   }
   # TODO: populate form with values from venue with ID <venue_id>
+  venue = Venue.query.filter_by(id = venue_id).first()
   return render_template('forms/edit_venue.html', form=form, venue=venue)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
   # TODO: take values from the form submitted, and update existing
   # venue record with ID <venue_id> using the new attributes
+  try:
+    form = VenueForm()
+    Venue.query.filter_by(id = venue_id).update(dict(
+      name=form.name.data,
+        city = form.city.data,
+        state = form.state.data,
+        address = form.address.data,
+        phone=form.phone.data,
+        image_link=form.image_link.data,
+        facebook_link = form.facebook_link.data,
+        genres=form.genres.data,
+        seeking_talent = form.seeking_talent.data,
+        seeking_description = form.seeking_description.data,
+        website_link = form.website_link.data
+    ))
+    db.session.commit()
+  except:
+    db.session.rollback()
+  finally:
+    db.session.close()
+
   return redirect(url_for('show_venue', venue_id=venue_id))
 
 #  Create Artist
