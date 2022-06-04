@@ -91,31 +91,30 @@ def venues():
   venues = Venue.query.all()
   data=[]
   
-  venue_places = set()
+  places = set()
   for place in venues:
-    venue_places.add((place.city,place.state))
+    places.add((place.city,place.state))
 
-  for venue in venue_places:
+  for venue in places:
     data.append({
       "city":venue[0],
       "state":venue[1],
       "venues":[]
     })
 
-  for show_place in venues:
+  for place in venues:
     num_upcoming_shows = 0
-
-    shows = Show.query.filter_by(venue_id = show_place.id).all()
+    shows = Show.query.filter_by(venue_id = place.id).all()
 
     for show in shows:
       if show.start_time > datetime.now():
         num_upcoming_shows += 1
 
-    for input in data:
-      if show_place.city == input['city'] and show_place.state == input['state']:
-        input['venues'].append({
-          "id":show_place.id,
-          "name":show_place.name,
+    for elem in data:
+      if place.city == elem['city'] and place.state == elem['state']:
+        elem['venues'].append({
+          "id":place.id,
+          "name":place.name,
           "num_upcoming_shows": num_upcoming_shows
         })
   return render_template('pages/venues.html', areas=data)
