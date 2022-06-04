@@ -88,6 +88,21 @@ def format_datetime(value, format='medium'):
 app.jinja_env.filters['datetime'] = format_datetime
 
 #----------------------------------------------------------------------------#
+# Helper functions
+#----------------------------------------------------------------------------#
+def get_shows(owner_id, owner = 'artist', type = 'future'):
+  if type == 'past':
+    if owner == 'artist':
+      shows = db.session.query(Show).join(Artist).filter(Show.artist_id == owner_id).filter(Show.start_time<datetime.now()).all()
+    else:
+      shows = db.session.query(Show).join(Venue).filter(Show.venue_id == owner_id).filter().all(Show.start_time<datetime.now())
+  else:
+    if owner == 'artist':
+      shows = db.session.query(Show).join(Artist).filter(Show.artist_id == owner_id).filter(Show.start_time>datetime.now()).all()
+    else:
+      shows = db.session.query(Show).join(Venue).filter(Show.venue_id == owner_id).filter(Show.start_time>datetime.now()).all()
+  return [shows, len(shows)]
+#----------------------------------------------------------------------------#
 # Controllers.
 #----------------------------------------------------------------------------#
 
@@ -168,6 +183,20 @@ def search_venues():
       "name": "The Dueling Pianos Bar",
       "num_upcoming_shows": 0,
     }]
+  }
+  search_term = request.form.get('search_term')
+  query_results = Venue.query.filter(Venue.name.ilike('%'+search_term+'%'))
+  data = []
+  for result in query_results:
+    data.append({
+      'id': result.id,
+      'name': result.name + str(get_shows(owner = 'venue', owner_id = result.id)[1]),
+      'num_upcoming_shows': get_shows(owner = 'venue', owner_id = result.id)[1]
+    })
+    print(result.name)
+  response = {
+    'count': query_results.count(),
+    'data': data
   }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
@@ -329,13 +358,14 @@ def create_venue_submission():
     db.session.commit()
     # TODO: modify data to be the data object returned from db insertion
     # on successful db insert, flash success
-    flash('Venue ' + request.form['name'] + ' was successfully listed!')
+    data = venue
+    flash('Venue ' + data.name + ' was successfully listed!')
     # TODO: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
   except:
     db.session.rollback()
     # flash('An error occurred. Venue ' + venue.name + ' could not be listed.')
-    flash('An error occurred. Venue ' + request.form['name'] + ' could not be listed.')
+    flash('An error occurred. Venue ' + venue.name + ' could not be listed.')
   finally:
     db.session.close()
     # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
@@ -391,6 +421,20 @@ def search_artists():
       "name": "Guns N Petals",
       "num_upcoming_shows": 0,
     }]
+  }
+  search_term = request.form.get('search_term')
+  query_results = Artist.query.filter(Artist.name.ilike('%'+search_term+'%'))
+  data = []
+  for result in query_results:
+    data.append({
+      'id': result.id,
+      'name': result.name + str(get_shows(result.id)[1]),
+      'num_upcoming_shows': get_shows(result.id)[1]
+    })
+    print(result.name)
+  response = {
+    'count': query_results.count(),
+    'data': data
   }
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
 
@@ -638,7 +682,7 @@ def create_artist_submission():
     db.session.add(artist)
     db.session.commit()
     # on successful db insert, flash success
-    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+    flash('Artist ' + artist.name + ' was successfully listed!')
 
   except:
     # TODO: modify data to be the data object returned from db insertion
@@ -646,7 +690,7 @@ def create_artist_submission():
     # TODO: on unsuccessful db insert, flash an error instead.
     # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
     db.session.rollback()
-    flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.')
+    flash('An error occurred. Artist ' + artist.name + ' could not be listed.')
     #flash('An error occurred. Artist ' + data.name + ' could not be listed.')
   finally:
     db.session.close()
