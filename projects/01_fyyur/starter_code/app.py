@@ -50,17 +50,29 @@ app.jinja_env.filters['datetime'] = format_datetime
 #----------------------------------------------------------------------------#
 # Helper functions
 #----------------------------------------------------------------------------#
-def get_shows(owner_id, owner = 'artist', type = 'future'):
-  if type == 'past':
-    if owner == 'artist':
-      shows = db.session.query(Show).join(Artist).filter(Show.artist_id == owner_id).filter(Show.start_time<datetime.now()).all()
-    else:
-      shows = db.session.query(Show).join(Venue).filter(Show.venue_id == owner_id).filter().all(Show.start_time<datetime.now())
+def get_shows(owner_id, owner = 'artist', type = 'future', join_on = False):
+  owner_attr = owner+'_id'
+
+  if join_on:
+    join_class = Venue
   else:
-    if owner == 'artist':
-      shows = db.session.query(Show).join(Artist).filter(Show.artist_id == owner_id).filter(Show.start_time>datetime.now()).all()
-    else:
-      shows = db.session.query(Show).join(Venue).filter(Show.venue_id == owner_id).filter(Show.start_time>datetime.now()).all()
+    join_class = Artist
+
+  if type == 'past':
+    shows = db.session.query(Show).join(join_class).filter(getattr(Show,owner_attr) == owner_id).filter(Show.start_time<datetime.now()).all()
+  else:
+    shows = db.session.query(Show).join(join_class).filter(getattr(Show,owner_attr) == owner_id).filter(Show.start_time>datetime.now()).all()
+  if owner == 'venue':
+    data = []
+    for show in shows:
+      data.append({
+        "artist_id": show.artist_id,
+        "artist_name": Artist.query.filter_by(id=show.artist_id).first().name,
+        "artist_image_link":show.artists.image_link,
+        "start_time": show.start_time.strftime("%Y-%m-%d %H:%M:%S")
+      })
+    shows = data
+  
   return [shows, len(shows)]
 #----------------------------------------------------------------------------#
 # Controllers.
@@ -245,27 +257,9 @@ def show_venue(venue_id):
   
   venue = Venue.query.filter_by(id=venue_id).first()
 
-  upcoming_shows = db.session.query(Show).join(Artist).filter(Show.venue_id == venue_id).filter(Show.start_time>datetime.now()).all()
-  upcoming_shows_data = []
-
-  past_shows = db.session.query(Show).join(Artist).filter(Show.venue_id == venue_id).filter(Show.start_time<datetime.now()).all()
-  past_shows_data = []
-
-  for show in past_shows:
-    past_shows_data.append({
-      "artist_id": show.artist_id,
-      "artist_name": Artist.query.filter_by(id=show.artist_id).first().name,
-      "artist_image_link":show.artists.image_link,
-      "start_time": show.start_time.strftime("%Y-%m-%d %H:%M:%S")
-    })
-
-  for show in upcoming_shows:
-    upcoming_shows_data.append({
-      "artist_id": show.artist_id,
-      "artist_name": Artist.query.filter_by(id=show.artist_id).first().name,
-      "artist_image_link":show.artists.image_link,
-      "start_time": show.start_time.strftime("%Y-%m-%d %H:%M:%S")
-    })
+  # upcoming_shows = db.session.query(Show).join(Artist).filter(Show.venue_id == venue_id).filter(Show.start_time>datetime.now()).all()
+  upcoming_shows = get_shows(owner_id= venue_id, owner='venue')
+  past_shows = get_shows(owner_id= venue_id, owner='venue', type='past')
 
   data = {
     "id":venue.id,
@@ -280,10 +274,10 @@ def show_venue(venue_id):
     "seeking_talent": venue.seeking_talent,
     "seeking_description": venue.seeking_description,
     "image_link": venue.image_link,
-    "past_shows":past_shows_data,
-    "upcoming_shows":upcoming_shows_data,
-    "past_shows_count": len(past_shows_data),
-    "upcoming_shows_count":len(upcoming_shows_data)
+    "past_shows":past_shows[0],
+    "upcoming_shows": upcoming_shows[0],
+    "past_shows_count": past_shows[1],
+    "upcoming_shows_count":upcoming_shows[1]
   }
   return render_template('pages/show_venue.html', venue=data)
 
@@ -391,7 +385,6 @@ def search_artists():
       'name': result.name + str(get_shows(result.id)[1]),
       'num_upcoming_shows': get_shows(result.id)[1]
     })
-    print(result.name)
   response = {
     'count': query_results.count(),
     'data': data
