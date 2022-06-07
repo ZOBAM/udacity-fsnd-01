@@ -2,6 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+from ast import arguments
 from email.policy import default
 import json
 from unicodedata import name
@@ -51,6 +52,7 @@ app.jinja_env.filters['datetime'] = format_datetime
 # Helper functions
 #----------------------------------------------------------------------------#
 def get_shows(owner_id, owner = 'artist', type = 'future', join_on = False):
+  # a function to fetch shows based on provided arguments
   owner_attr = owner+'_id'
 
   if join_on:
@@ -92,31 +94,28 @@ def venues():
   data=[]
   
   places = set()
-  for place in venues:
-    places.add((place.city,place.state))
+  print('the length of venue is: ', len(venues))
+  num_of_places = len(venues)
+  i = 0
+  while i < num_of_places:
+    places.add((venues[i].city,venues[i].state))
+    i += 1
 
   for venue in places:
+    current_venues = Venue.query.filter_by(state = venue[1], city = venue[0]).all()
+    venues = []
+    for current_venue in current_venues:
+      venues.append({
+        'id': current_venue.id,
+        'name': current_venue.name,
+        'num_upcoming_show': get_shows(owner_id=current_venue.id, owner='venue',join_on=True)[1]
+      })
     data.append({
       "city":venue[0],
       "state":venue[1],
-      "venues":[]
+      "venues":venues
     })
 
-  for place in venues:
-    num_upcoming_shows = 0
-    shows = Show.query.filter_by(venue_id = place.id).all()
-
-    for show in shows:
-      if show.start_time > datetime.now():
-        num_upcoming_shows += 1
-
-    for elem in data:
-      if place.city == elem['city'] and place.state == elem['state']:
-        elem['venues'].append({
-          "id":place.id,
-          "name":place.name,
-          "num_upcoming_shows": num_upcoming_shows
-        })
   return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
