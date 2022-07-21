@@ -17,7 +17,7 @@ CORS(app)
 !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 !! Running this function will add one
 '''
-# db_drop_and_create_all()
+db_drop_and_create_all()
 
 # ROUTES
 '''
@@ -77,7 +77,7 @@ def create_drink(jwt):
     json_data = request.get_json()
 
     new_title = json_data.get('title', None)
-    new_recipe = json.dumps(json_data.get('recipe'))
+    new_recipe = json.dumps(json_data.get('recipe', None))
 
     try:
         drink = Drink(title=new_title, recipe=new_recipe)
@@ -111,9 +111,9 @@ def update_drink(jwt, drink_id):
         if drink is None:
             abort(404)
 
-        if json_data.get("title"):
+        if 'title' in json_data:
             drink.title = json_data.get('title')
-        if json_data.get("recipe"):
+        if 'recipe' in json_data:
             drink.recipe = json.dumps(json_data.get('recipe'))
 
         drink.update()
